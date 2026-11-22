@@ -1,40 +1,33 @@
-import os
-
 import psycopg
-from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 
-load_dotenv()
+from app.api.v1 import auth
+from app.core.config import settings
 
 app = FastAPI(
-    title="Enterprise AI Knowledge Assistant",
+    title=settings.PROJECT_NAME,
     description="AI-powered enterprise document knowledge platform",
-    version="0.1.0"
+    version=settings.VERSION,
 )
 
+app.include_router(auth.router, prefix="/api/v1")
 
-@app.get("/health")
+
+@app.get("/health", tags=["Health"])
 def health_check():
     return {
         "status": "healthy",
-        "application": "Enterprise AI Knowledge Assistant"
+        "application": settings.PROJECT_NAME,
+        "version": settings.VERSION,
     }
 
 
-@app.get("/health/db")
+@app.get("/health/db", tags=["Health"])
 def database_health_check():
-    database_url = os.getenv("DATABASE_URL")
-
-    if not database_url:
-        raise HTTPException(
-            status_code=500,
-            detail="DATABASE_URL is not configured"
-        )
-
     try:
         with psycopg.connect(
-            database_url,
-            connect_timeout=3
+            settings.RAW_DATABASE_URL,
+            connect_timeout=3,
         ) as connection:
             with connection.cursor() as cursor:
                 cursor.execute("SELECT 1")
@@ -43,11 +36,11 @@ def database_health_check():
         return {
             "status": "healthy",
             "database": "PostgreSQL",
-            "connection": result[0] == 1
+            "connection": result[0] == 1,
         }
 
     except psycopg.Error:
         raise HTTPException(
             status_code=503,
-            detail="Database connection failed"
+            detail="Database connection failed",
         )

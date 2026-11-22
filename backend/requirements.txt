@@ -2,3 +2,9 @@ fastapi
 uvicorn[standard]
 psycopg[binary]
 python-dotenv
+sqlalchemy
+alembic
+pwdlib[argon2]
+pyjwt
+pydantic[email]
+python-multipart
