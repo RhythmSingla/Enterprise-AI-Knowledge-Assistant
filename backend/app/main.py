@@ -1,7 +1,7 @@
 import psycopg
 from fastapi import FastAPI, HTTPException
 
-from app.api.v1 import auth
+from app.api.v1 import auth, documents
 from app.core.config import settings
 
 app = FastAPI(
@@ -11,6 +11,7 @@ app = FastAPI(
 )
 
 app.include_router(auth.router, prefix="/api/v1")
+app.include_router(documents.router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["Health"])

@@ -23,3 +23,8 @@ class Organization(Base):
     users: Mapped[list["User"]] = relationship(
         "User", back_populates="organization", cascade="all, delete-orphan"
     )
+
+    documents: Mapped[list["Document"]] = relationship(
+        "Document", back_populates="organization", cascade="all, delete-orphan"
+    )
+    

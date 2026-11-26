@@ -6,13 +6,12 @@ load_dotenv()
 
 class Settings:
     PROJECT_NAME: str = "Enterprise AI Knowledge Assistant"
-    VERSION: str = "0.2.0"
+    VERSION: str = "0.3.0"
 
     RAW_DATABASE_URL: str = os.getenv(
         "DATABASE_URL",
         "postgresql://app_user:local_dev_password@localhost:5432/knowledge_assistant",
     )
-    # SQLAlchemy defaults to psycopg2 for 'postgresql://'; switch to psycopg v3 automatically
     DATABASE_URL: str = (
         RAW_DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
         if RAW_DATABASE_URL.startswith("postgresql://")
@@ -29,6 +28,10 @@ class Settings:
     REFRESH_TOKEN_EXPIRE_DAYS: int = int(
         os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7")
     )
+
+    # Document storage & validation settings
+    UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "storage")
+    MAX_UPLOAD_SIZE_MB: int = int(os.getenv("MAX_UPLOAD_SIZE_MB", "10"))
 
 
 settings = Settings()
