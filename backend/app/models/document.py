@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 
+from huggingface_hub import Organization
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -38,4 +39,7 @@ class Document(Base):
 
     organization: Mapped["Organization"] = relationship(
         "Organization", back_populates="documents"
+    )
+    chunks: Mapped[list["DocumentChunk"]] = relationship(
+        "DocumentChunk", back_populates="document", cascade="all, delete-orphan"
     )

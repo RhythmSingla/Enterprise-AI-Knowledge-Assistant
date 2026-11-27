@@ -17,8 +17,15 @@ from app.api.deps import get_current_user
 from app.core.config import settings
 from app.db.session import get_db
 from app.models.document import Document
+from app.models.document_chunk import DocumentChunk
 from app.models.user import User
-from app.schemas.document import DocumentResponse, DocumentUploadResponse
+from app.schemas.document import (
+    DocumentChunkResponse,
+    DocumentResponse,
+    DocumentUploadResponse,
+)
+from app.services.chunker import chunk_document
+from app.services.embedder import embed_texts
 from app.services.pdf_extractor import PDFValidationError, extract_text_from_pdf
 from app.services.storage import storage_service
 
@@ -53,7 +60,17 @@ async def upload_document(
             detail=str(exc),
         )
 
-    # 3. Strip any directory prefixes from client-supplied filename
+    # 3. Split extracted pages into overlapping semantic chunks & generate embeddings
+    chunks = chunk_document(extracted)
+    if not chunks:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No indexable text chunks could be generated from this PDF.",
+        )
+
+    embeddings = embed_texts([chunk.content for chunk in chunks])
+
+    # 4. Strip any directory prefixes from client-supplied filename & persist binary file
     clean_filename = (
         Path(file.filename or "untitled.pdf").name.strip() or "untitled.pdf"
     )[:255]
@@ -65,7 +82,7 @@ async def upload_document(
         content=file_bytes,
     )
 
-    # 4. Commit metadata to PostgreSQL; roll back saved file if DB fails
+    # 5. Atomically commit Document + all DocumentChunk vectors to PostgreSQL
     try:
         document = Document(
             id=document_id,
@@ -75,9 +92,23 @@ async def upload_document(
             storage_path=storage_path,
             file_size_bytes=len(file_bytes),
             page_count=extracted.page_count,
-            status="EXTRACTED",
+            status="INDEXED",
         )
         db.add(document)
+
+        chunk_records = [
+            DocumentChunk(
+                document_id=document_id,
+                organization_id=current_user.organization_id,
+                chunk_index=chunk.chunk_index,
+                page_number=chunk.page_number,
+                content=chunk.content,
+                embedding=vector,
+            )
+            for chunk, vector in zip(chunks, embeddings, strict=True)
+        ]
+        db.add_all(chunk_records)
+
         db.commit()
         db.refresh(document)
     except Exception:
@@ -88,7 +119,11 @@ async def upload_document(
     return DocumentUploadResponse(
         **base_data,
         extracted_characters=extracted.total_characters,
-        message=f"Successfully extracted {extracted.total_characters} characters across {extracted.page_count} pages.",
+        chunk_count=len(chunk_records),
+        message=(
+            f"Successfully indexed {len(chunk_records)} chunks "
+            f"({extracted.total_characters} characters across {extracted.page_count} pages)."
+        ),
     )
 
 
@@ -123,6 +158,35 @@ def get_document(
             detail="Document not found",
         )
     return document
+
+
+@router.get("/{document_id}/chunks", response_model=list[DocumentChunkResponse])
+def list_document_chunks(
+    document_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    document = db.scalar(
+        select(Document).where(
+            Document.id == document_id,
+            Document.organization_id == current_user.organization_id,
+        )
+    )
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        )
+
+    stmt = (
+        select(DocumentChunk)
+        .where(
+            DocumentChunk.document_id == document_id,
+            DocumentChunk.organization_id == current_user.organization_id,
+        )
+        .order_by(DocumentChunk.chunk_index.asc())
+    )
+    return list(db.scalars(stmt).all())
 
 
 @router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)

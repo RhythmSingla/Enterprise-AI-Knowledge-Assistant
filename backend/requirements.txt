@@ -9,3 +9,5 @@ pyjwt
 pydantic[email]
 python-multipart
 pymupdf
+pgvector #A PostgreSQL extension that adds vector data types and similarity math operators (like <=> for cosine distance) to SQL.
+fastembed #fastembed uses lightweight ONNX Runtime on CPU to generate fast, high-accuracy 384-dimensional embeddings locally at zero cost
