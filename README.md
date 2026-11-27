@@ -70,6 +70,6 @@ Enterprise-AI-Knowledge-Assistant/
 - [x] FastAPI & PostgreSQL (`pgvector`) containerized setup[cite: 8]
 - [x] SQLAlchemy models, Alembic migrations & Argon2/JWT auth[cite: 8]
 - [x] Multi-tenant PDF upload, validation & PyMuPDF text extraction[cite: 8]
-- [ ] Document chunking & vector embedding generation
+- [x] Document chunking & vector embedding generation
 - [ ] Semantic similarity search with `pgvector`
 - [ ] Grounded Q&A API with page-level citations & frontend interface
